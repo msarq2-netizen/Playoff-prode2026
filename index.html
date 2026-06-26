@@ -457,6 +457,68 @@ function loadPPred() {
 }
 
 // ── Lock system ───────────────────────────────────────────────────────────────
+// Cada ronda cierra cuando arranca su primer partido (ART = UTC-3)
+// 'r32'  cierra: Dom 28/6 20:00 ART = 28/6 23:00 UTC
+// 'r16'  cierra: Sáb 5/7 12:00 ART  = 5/7  15:00 UTC  (estimado, antes del primer 8vo)
+// 'qf'   cierra: Vie 11/7 13:00 ART = 11/7 16:00 UTC  (estimado)
+// 'sf'   cierra: Mar 15/7 13:00 ART = 15/7 16:00 UTC  (estimado)
+// 'final' cierra: Dom 19/7 13:00 ART = 19/7 16:00 UTC (estimado)
+var ROUND_DEADLINES = {
+  r32:   new Date('2026-06-28T23:00:00Z'),
+  r16:   new Date('2026-07-05T15:00:00Z'),
+  qf:    new Date('2026-07-11T16:00:00Z'),
+  sf:    new Date('2026-07-15T16:00:00Z'),
+  final: new Date('2026-07-19T16:00:00Z'),
+};
+// Etiqueta legible de cuándo abre cada ronda
+var ROUND_OPEN_LABEL = {
+  r16:    'Sáb 5 Jul · 12:00 ART',
+  qf:     'Vie 11 Jul · 13:00 ART',
+  sf:     'Mar 15 Jul · 13:00 ART',
+  final:  'Dom 19 Jul · 13:00 ART',
+};
+// Etiqueta de cuándo cierra cada ronda
+var ROUND_CLOSE_LABEL = {
+  r32:   'Dom 28/6 · 20:00 ART',
+  r16:   'Sáb 5 Jul · 12:00 ART',
+  qf:    'Vie 11 Jul · 13:00 ART',
+  sf:    'Mar 15 Jul · 13:00 ART',
+  final: 'Dom 19 Jul · 13:00 ART',
+};
+// Una ronda abre cuando la anterior cierra
+var ROUND_OPENS_AFTER = {r16:'r32', qf:'r16', sf:'qf', final:'sf', tercero:'sf'};
+
+// Devuelve 'open' | 'closed' | 'locked' (aún no habilitada)
+function getRoundState(k) {
+  var now = new Date();
+  var closeKey = (k==='tercero') ? 'final' : k;
+  var closeDL = ROUND_DEADLINES[closeKey];
+  if(!closeDL) return 'open'; // ronda desconocida, la dejamos abierta
+  if(k === 'r32') {
+    return now >= closeDL ? 'closed' : 'open';
+  }
+  var prevKey = ROUND_OPENS_AFTER[k];
+  var openTime = prevKey ? ROUND_DEADLINES[prevKey] : null;
+  if(openTime && now < openTime) return 'locked'; // todavía no abrió
+  if(now >= closeDL) return 'closed';
+  return 'open';
+}
+
+function getRoundCountdown(k) {
+  var closeKey = (k==='tercero') ? 'final' : k;
+  var dl = ROUND_DEADLINES[closeKey];
+  if(!dl) return null;
+  var diff = dl - new Date();
+  if(diff <= 0) return null;
+  var h = Math.floor(diff / 3600000);
+  var m = Math.floor((diff % 3600000) / 60000);
+  if(h >= 48){ var d=Math.floor(h/24); h=h%24; return d+'d '+h+'h '+m+'m'; }
+  return h+'h '+m+'m';
+}
+
+// Compat helpers usados en pSave/pPW
+function isR32AutoLocked() { return getRoundState('r32')==='closed'; }
+
 function isLocked(name) {
   return localStorage.getItem(KEY + '_locked_' + name) === '1';
 }
@@ -594,6 +656,8 @@ function pLsr(mid,name){
 }
 function pSave(name,mid,side,val){
   if(isLocked(name)) return;
+  // Bloqueo automático por ronda
+  var _rk=mid&&mid.replace(/-\d+$/,''); if(_rk&&getRoundState(_rk)!=='open') return;
   if(!pPred[name]) pPred[name]={};
   if(!pPred[name][mid]) pPred[name][mid]={h:'',a:'',ht:'',at:'',pw:null,pl:null};
   pPred[name][mid][side]=val;
@@ -604,6 +668,7 @@ function pSave(name,mid,side,val){
 }
 function pPW(name,mid,team){
   if(isLocked(name)) return;
+  var _rk2=mid&&mid.replace(/-\d+$/,''); if(_rk2&&getRoundState(_rk2)!=='open') return;
   if(!pPred[name]) pPred[name]={};
   var pm=pPred[name];
   if(!pm[mid]) pm[mid]={h:'',a:'',ht:pTeam(mid,true,name),at:pTeam(mid,false,name),pw:null,pl:null};
@@ -644,6 +709,16 @@ function playerCard(mid, name) {
     'pSave(\''+en+'\',\''+esc(mid)+'\',\'a\',this.value)',
     'pPW(\''+en+'\',\''+esc(mid)+'\',\''+esc(ht)+'\')',
     'pPW(\''+en+'\',\''+esc(mid)+'\',\''+esc(at)+'\')');
+}
+
+// Read-only playerCard (used when r32 is auto-locked but player hasn't manually locked)
+function playerCardRO(mid, name) {
+  var pp=pPred[name]||{};
+  var ht=pTeam(mid,true,name), at=pTeam(mid,false,name);
+  if(!pp[mid]) pp[mid]={h:'',a:'',ht,at,pw:null,pl:null};
+  else {pp[mid].ht=ht;pp[mid].at=at;}
+  var p=pp[mid];
+  return cardReadOnly(mid,ht,at,p.h,p.a,p.pw);
 }
 
 function cardReadOnly(mid,ht,at,hv,av,pw){
@@ -1002,8 +1077,44 @@ function renderExtrasPronostico(name){
   return h;
 }
 
+// Genera un banner de estado para una ronda
+function roundStateBanner(k, label) {
+  var state=getRoundState(k);
+  var cd=getRoundCountdown(k);
+  var closeLabel=ROUND_CLOSE_LABEL[k]||'';
+  var openLabel=ROUND_OPEN_LABEL[k]||'';
+  if(state==='open'){
+    return '<div style="display:flex;align-items:center;gap:10px;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:9px 14px;margin-bottom:10px">'
+      +'<span style="font-size:1.1rem">⏳</span>'
+      +'<div>'
+      +'<div style="color:#22c55e;font-weight:700;font-size:.82rem">'+label+' — abierto</div>'
+      +'<div style="color:#64748b;font-size:.7rem">Cierra el '+closeLabel+(cd?' · <strong style="color:#fbbf24">Faltan '+cd+'</strong>':'')+'</div>'
+      +'</div>'
+      +'</div>';
+  }
+  if(state==='closed'){
+    return '<div style="display:flex;align-items:center;gap:10px;background:#0f172a;border:1px solid #475569;border-radius:8px;padding:9px 14px;margin-bottom:10px">'
+      +'<span style="font-size:1.1rem">🔒</span>'
+      +'<div>'
+      +'<div style="color:#f59e0b;font-weight:700;font-size:.82rem">'+label+' — cerrado</div>'
+      +'<div style="color:#64748b;font-size:.7rem">El plazo venció el '+closeLabel+'. Solo visualización.</div>'
+      +'</div>'
+      +'</div>';
+  }
+  // locked (todavía no habilitado)
+  return '<div style="display:flex;align-items:center;gap:10px;background:#0f172a;border:1px dashed #334155;border-radius:8px;padding:9px 14px;margin-bottom:10px;opacity:.7">'
+    +'<span style="font-size:1.1rem">🔐</span>'
+    +'<div>'
+    +'<div style="color:#94a3b8;font-weight:700;font-size:.82rem">'+label+' — bloqueado</div>'
+    +'<div style="color:#475569;font-size:.7rem">Se habilita el '+openLabel+' (al cerrar la ronda anterior)</div>'
+    +'</div>'
+    +'</div>';
+}
+
 function renderPBracket(name){
   var locked=isLocked(name);
+
+  // ── Barra de lock manual ───────────────────────────────────────────────────
   var lockBar='';
   if(locked){
     lockBar='<div class="lock-bar locked">'
@@ -1019,18 +1130,46 @@ function renderPBracket(name){
 
   var h=(locked
     ? '<div class="note"><strong>'+name+'</strong> — pronóstico guardado. Solo visualización.</div>'
-    : '<div class="note"><strong>'+name+'</strong> — completá tu bracket. Los equipos de rondas siguientes se resuelven desde tus propias predicciones.</div>'
+    : '<div class="note"><strong>'+name+'</strong> — completá tu bracket ronda a ronda. Cada ronda se habilita cuando termina la anterior.</div>'
   );
+
   PRNDS.forEach(function(r){
-    h+='<p class="rnd-title gap">'+r.t+'</p><div class="bk-grid">';
-    r.ids.forEach(function(id){h+=playerCard(id,name);});
+    var state=locked ? 'closed' : getRoundState(r.k);
+    h+='<p class="rnd-title gap">'+r.t+'</p>';
+    h+=roundStateBanner(r.k, r.t.replace(/^[^\s]+\s/,''));
+    h+='<div class="bk-grid">';
+    if(state==='locked'){
+      // Placeholder grayed-out cards
+      r.ids.forEach(function(id){
+        h+='<div class="mc" style="opacity:.35;pointer-events:none"><div class="mc-id">'+id.toUpperCase()+' 🔐</div>'
+          +'<div class="mc-row"><span class="mn tbd">Por definir</span></div>'
+          +'<div class="mc-row"><span class="mn tbd">Por definir</span></div></div>';
+      });
+    } else if(state==='open'){
+      r.ids.forEach(function(id){ h+=playerCard(id,name); });
+    } else { // closed
+      r.ids.forEach(function(id){ h+=playerCardRO(id,name); });
+    }
     h+='</div>';
   });
-  h+='<p class="rnd-title gap">🏆 Final y 3er Puesto</p>'
-    +'<div class="final-grid">'
-    +'<div><div class="fl">🏆 FINAL</div>'+playerCard('final',name)+'</div>'
-    +'<div><div class="fl">🥉 3ER PUESTO</div>'+playerCard('tercero',name)+'</div>'
-    +'</div>';
+
+  // Final y 3er puesto
+  var finalState=locked ? 'closed' : getRoundState('final');
+  var terceroState=locked ? 'closed' : getRoundState('tercero');
+  h+='<p class="rnd-title gap">🏆 Final y 3er Puesto</p>';
+  h+=roundStateBanner('final','Final y 3er puesto');
+  h+='<div class="final-grid">';
+  if(finalState==='locked'){
+    h+='<div><div class="fl">🏆 FINAL</div><div class="mc" style="opacity:.35;pointer-events:none"><div class="mc-id">FINAL 🔐</div><div class="mc-row"><span class="mn tbd">Por definir</span></div><div class="mc-row"><span class="mn tbd">Por definir</span></div></div></div>'
+     +'<div><div class="fl">🥉 3ER PUESTO</div><div class="mc" style="opacity:.35;pointer-events:none"><div class="mc-id">TERCERO 🔐</div><div class="mc-row"><span class="mn tbd">Por definir</span></div><div class="mc-row"><span class="mn tbd">Por definir</span></div></div></div>';
+  } else if(finalState==='open'){
+    h+='<div><div class="fl">🏆 FINAL</div>'+playerCard('final',name)+'</div>'
+     +'<div><div class="fl">🥉 3ER PUESTO</div>'+playerCard('tercero',name)+'</div>';
+  } else {
+    h+='<div><div class="fl">🏆 FINAL</div>'+playerCardRO('final',name)+'</div>'
+     +'<div><div class="fl">🥉 3ER PUESTO</div>'+playerCardRO('tercero',name)+'</div>';
+  }
+  h+='</div>';
   h+=lockBar;
   document.getElementById('pbracket').innerHTML=h;
 }
