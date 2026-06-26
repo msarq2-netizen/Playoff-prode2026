@@ -180,6 +180,57 @@ var ADMIN_PW = 'admin2026';
 var proSubTab = 'grupos';
 var resSubTab = 'grupos';
 
+// ── Flags ─────────────────────────────────────────────────────────────────────
+// ISO 3166-1 alpha-2 codes → flagcdn.com images (funciona en todos los navegadores)
+var FLAGS = {
+  // Norte/Centro/Caribe
+  'México':'mx','Canadá':'ca','Canada':'ca',
+  'EEUU':'us','Estados Unidos':'us','USA':'us',
+  'Jamaica':'jm','Honduras':'hn','Costa Rica':'cr',
+  'Panamá':'pa','El Salvador':'sv','Trinidad y Tobago':'tt',
+  'Curazao':'cw','Curaçao':'cw','Granada':'gd',
+  // Sudamérica
+  'Argentina':'ar','Brasil':'br','Colombia':'co',
+  'Uruguay':'uy','Chile':'cl','Ecuador':'ec',
+  'Perú':'pe','Paraguay':'py','Bolivia':'bo','Venezuela':'ve',
+  // Europa
+  'Alemania':'de','Francia':'fr','España':'es',
+  'Inglaterra':'gb-eng','Portugal':'pt','Bélgica':'be',
+  'Países Bajos':'nl','Holanda':'nl','Suiza':'ch',
+  'Croacia':'hr','Dinamarca':'dk','Austria':'at',
+  'Serbia':'rs','Polonia':'pl','Rumania':'ro',
+  'Turquía':'tr','Hungría':'hu','República Checa':'cz',
+  'Escocia':'gb-sct','Gales':'gb-wls','Ucrania':'ua',
+  'Eslovenia':'si','Eslovaquia':'sk','Georgia':'ge',
+  'Albania':'al','Bosnia-Herzegovina':'ba','Bosnia y Herzegovina':'ba',
+  'Grecia':'gr','Italia':'it','Suecia':'se','Noruega':'no',
+  // África
+  'Marruecos':'ma','Senegal':'sn','Nigeria':'ng',
+  'Costa de Marfil':'ci','Ghana':'gh','Camerún':'cm',
+  'Egipto':'eg','Argelia':'dz','Túnez':'tn',
+  'Sudáfrica':'za','Mali':'ml','Angola':'ao',
+  'Tanzania':'tz','Mozambique':'mz','Zambia':'zm',
+  'Cabo Verde':'cv','Guinea':'gn','Uganda':'ug',
+  'República Democrática del Congo':'cd','RD Congo':'cd',
+  'Etiopía':'et','Benín':'bj','Ruanda':'rw',
+  // Asia / Medio Oriente
+  'Japón':'jp','Corea del Sur':'kr','Arabia Saudita':'sa',
+  'Irán':'ir','Australia':'au','Qatar':'qa',
+  'Irak':'iq','Iraq':'iq','Uzbekistán':'uz',
+  'Indonesia':'id','Jordania':'jo','Bahréin':'bh',
+  'Tayikistán':'tj','China':'cn','India':'in',
+  'Kirguistán':'kg','Siria':'sy',
+  // Oceanía
+  'Nueva Zelanda':'nz','Tahití':'pf','Fiyi':'fj',
+};
+var FLAG_URL = 'https://flagcdn.com/w20/';
+function withFlag(name){
+  if(!name) return name;
+  var code = FLAGS[name];
+  if(!code) return name;
+  return '<img src="'+FLAG_URL+code+'.png" style="width:18px;height:13px;vertical-align:middle;margin-right:4px;border-radius:1px" alt="">'+name;
+}
+
 // Fallback: hardcoded names in standings order (as of última actualización)
 // Se usan si no se puede extraer NAMES[] del script de la página
 var FALLBACK_NAMES = [
@@ -542,14 +593,15 @@ function cardReadOnly(mid,ht,at,hv,av,pw){
   var win='';
   if(!isNaN(hi)&&!isNaN(ai)){if(hi>ai)win=ht;else if(ai>hi)win=at;else win=pw||'';}
   var scoreH=(!isNaN(hi)?hv:'—'), scoreA=(!isNaN(ai)?av:'—');
+  var htD=htbd?'Por definir':withFlag(ht), atD=atbd?'Por definir':withFlag(at);
   var pen='';
   if(!isNaN(hi)&&!isNaN(ai)&&hi===ai&&pw&&!htbd&&!atbd){
-    pen='<div class="pen-row" style="opacity:.7">⚽ Penales: <strong style="color:#fef3c7">'+pw+'</strong></div>';
+    pen='<div class="pen-row" style="opacity:.7">⚽ Penales: <strong style="color:#fef3c7">'+withFlag(pw)+'</strong></div>';
   }
   return '<div class="mc" style="opacity:.85"><div class="mc-id">'+mid.toUpperCase()+' 🔒</div>'
-    +'<div class="mc-row"><span class="mn'+(htbd?' tbd':win===ht?' win':'')+'" title="'+ht+'">'+(htbd?'Por definir':ht)+'</span>'
+    +'<div class="mc-row"><span class="mn'+(htbd?' tbd':win===ht?' win':'')+'" title="'+ht+'">'+htD+'</span>'
     +'<span style="width:34px;text-align:center;font-weight:700;color:'+(win===ht?'#22c55e':'#94a3b8')+'">'+scoreH+'</span></div>'
-    +'<div class="mc-row"><span class="mn'+(atbd?' tbd':win===at?' win':'')+'" title="'+at+'">'+(atbd?'Por definir':at)+'</span>'
+    +'<div class="mc-row"><span class="mn'+(atbd?' tbd':win===at?' win':'')+'" title="'+at+'">'+atD+'</span>'
     +'<span style="width:34px;text-align:center;font-weight:700;color:'+(win===at?'#22c55e':'#94a3b8')+'">'+scoreA+'</span></div>'
     +pen+'</div>';
 }
@@ -560,17 +612,18 @@ function card(mid,ht,at,hv,av,pw,onH,onA,onPH,onPA) {
   var htbd=ht==='— Por definir —', atbd=at==='— Por definir —';
   var win='';
   if(!isNaN(hi)&&!isNaN(ai)){if(hi>ai)win=ht;else if(ai>hi)win=at;else win=pw||'';}
+  var htD=htbd?'Por definir':withFlag(ht), atD=atbd?'Por definir':withFlag(at);
   var pen='';
   if(isDraw&&!htbd&&!atbd){
     pen='<div class="pen-row">⚽ Penales:'
-      +'<button class="pb'+(pw===ht?' on':'')+'" onclick="'+onPH+'" title="'+ht+'">'+ht+'</button>'
-      +'<button class="pb'+(pw===at?' on':'')+'" onclick="'+onPA+'" title="'+at+'">'+at+'</button>'
+      +'<button class="pb'+(pw===ht?' on':'')+'" onclick="'+onPH+'" title="'+ht+'">'+withFlag(ht)+'</button>'
+      +'<button class="pb'+(pw===at?' on':'')+'" onclick="'+onPA+'" title="'+at+'">'+withFlag(at)+'</button>'
       +'</div>';
   }
   return '<div class="mc"><div class="mc-id">'+mid.toUpperCase()+'</div>'
-    +'<div class="mc-row"><span class="mn'+(htbd?' tbd':win===ht?' win':'')+'" title="'+ht+'">'+(htbd?'Por definir':ht)+'</span>'
+    +'<div class="mc-row"><span class="mn'+(htbd?' tbd':win===ht?' win':'')+'" title="'+ht+'">'+htD+'</span>'
     +'<input class="sb" type="number" min="0" max="30" value="'+hv+'" oninput="'+onH+'"></div>'
-    +'<div class="mc-row"><span class="mn'+(atbd?' tbd':win===at?' win':'')+'" title="'+at+'">'+(atbd?'Por definir':at)+'</span>'
+    +'<div class="mc-row"><span class="mn'+(atbd?' tbd':win===at?' win':'')+'" title="'+at+'">'+atD+'</span>'
     +'<input class="sb" type="number" min="0" max="30" value="'+av+'" oninput="'+onA+'"></div>'
     +pen+'</div>';
 }
@@ -585,7 +638,7 @@ function renderGroups() {
     standings[g].forEach(function(t,i){
       h+='<tr class="'+(i===0?'q1':i===1?'q2':i===2?'q3':'')+'">'
         +'<td><span class="badge b'+(i+1)+'">'+(i+1)+'</span></td>'
-        +'<td>'+t.t+'</td><td>'+t.pj+'</td><td><strong>'+t.pts+'</strong></td>'
+        +'<td>'+withFlag(t.t)+'</td><td>'+t.pj+'</td><td><strong>'+t.pts+'</strong></td>'
         +'<td>'+t.gf+'</td><td>'+t.ga+'</td><td>'+(t.gd>0?'+':'')+t.gd+'</td></tr>';
     });
     h+='</tbody></table></div>';
@@ -601,7 +654,7 @@ function thirdsHtml() {
   var h='<div class="box" style="margin-top:18px"><div class="box-h">🥉 Ranking de Terceros <span>Clasifican los mejores 8</span></div>'
     +'<table><thead><tr><th>#</th><th>Equipo</th><th>Grupo</th><th>PJ</th><th>PTS</th><th>GF</th><th>GC</th><th>DIF</th><th>¿Clasifica?</th></tr></thead><tbody>';
   thirds.forEach(function(t,i){
-    h+='<tr><td>'+(i+1)+'</td><td>'+t.t+'</td><td>'+t.grp+'</td>'
+    h+='<tr><td>'+(i+1)+'</td><td>'+withFlag(t.t)+'</td><td>'+t.grp+'</td>'
       +'<td>'+t.pj+'</td><td><strong>'+t.pts+'</strong></td>'
       +'<td>'+t.gf+'</td><td>'+t.ga+'</td><td>'+(t.gd>0?'+':'')+t.gd+'</td>'
       +'<td class="'+(i<8?'ok':'no')+'">'+(i<8?'✅ Sí':'❌ No')+'</td></tr>';
@@ -756,8 +809,8 @@ function renderGruposContent(name){
       var ptsStr=(m.hasAct&&m.hasPred)?String(pts):'';
       if(m.hasAct&&m.hasPred){grpPts+=pts;totalPts+=pts;if(pts===3)totalEx++;else if(pts===1)totalRe++;}
       // Abbreviate team names for display
-      var hShort=m.home.length>14?m.home.slice(0,13)+'…':m.home;
-      var aShort=m.away.length>14?m.away.slice(0,13)+'…':m.away;
+      var hShort=withFlag(m.home.length>14?m.home.slice(0,13)+'…':m.home);
+      var aShort=withFlag(m.away.length>14?m.away.slice(0,13)+'…':m.away);
       // Highlight exact/correct
       var rowStyle=pts===3?' style="background:#052e16"':pts===1?' style="background:#1c1408"':'';
       cards+='<tr'+rowStyle+'>'
@@ -846,12 +899,13 @@ function resultCard(mid){
   var sH=!isNaN(hi)?String(p.h):'—', sA=!isNaN(ai)?String(p.a):'—';
   var pen='';
   if(!isNaN(hi)&&!isNaN(ai)&&hi===ai&&p.pw&&!htbd&&!atbd){
-    pen='<div class="pen-row" style="opacity:.7">⚽ Penales: <strong style="color:#fef3c7">'+p.pw+'</strong></div>';
+    pen='<div class="pen-row" style="opacity:.7">⚽ Penales: <strong style="color:#fef3c7">'+withFlag(p.pw)+'</strong></div>';
   }
+  var htD=htbd?'Por definir':withFlag(ht), atD=atbd?'Por definir':withFlag(at);
   return '<div class="mc result"><div class="mc-id">'+mid.toUpperCase()+'</div>'
-    +'<div class="mc-row"><span class="mn'+(htbd?' tbd':win===ht?' win':'')+'" title="'+ht+'">'+(htbd?'Por definir':ht)+'</span>'
+    +'<div class="mc-row"><span class="mn'+(htbd?' tbd':win===ht?' win':'')+'" title="'+ht+'">'+htD+'</span>'
     +'<span class="mc-score" style="color:'+(win===ht?'#22c55e':'#94a3b8')+'">'+sH+'</span></div>'
-    +'<div class="mc-row"><span class="mn'+(atbd?' tbd':win===at?' win':'')+'" title="'+at+'">'+(atbd?'Por definir':at)+'</span>'
+    +'<div class="mc-row"><span class="mn'+(atbd?' tbd':win===at?' win':'')+'" title="'+at+'">'+atD+'</span>'
     +'<span class="mc-score" style="color:'+(win===at?'#22c55e':'#94a3b8')+'">'+sA+'</span></div>'
     +pen+'</div>';
 }
@@ -896,8 +950,8 @@ function renderGruposResultados(){
       +'</tr></thead><tbody>';
     ms.forEach(function(m){
       total++;
-      var hShort=m.home.length>15?m.home.slice(0,14)+'…':m.home;
-      var aShort=m.away.length>15?m.away.slice(0,14)+'…':m.away;
+      var hShort=withFlag(m.home.length>15?m.home.slice(0,14)+'…':m.home);
+      var aShort=withFlag(m.away.length>15?m.away.slice(0,14)+'…':m.away);
       if(m.hasAct){
         played++;
         var aH=parseInt(m.actH),aA=parseInt(m.actA);
@@ -1089,9 +1143,9 @@ function renderFixture(){
         +'<span class="fix-time">'+m.time+'</span>'
         +'<span class="fix-rnd">'+rndLabel(m.id)+'</span>'
         +'<div class="fix-teams">'
-        +'<span class="fix-team'+(htbd?' tbd':win===ht?' win':'')+'" title="'+(htbd?'':ht)+'">'+(htbd?'Por definir':ht)+'</span>'
+        +'<span class="fix-team'+(htbd?' tbd':win===ht?' win':'')+'" title="'+(htbd?'':ht)+'">'+(htbd?'Por definir':withFlag(ht))+'</span>'
         +scoreOrVs
-        +'<span class="fix-team fix-team-r'+(atbd?' tbd':win===at?' win':'')+'" title="'+(atbd?'':at)+'">'+(atbd?'Por definir':at)+'</span>'
+        +'<span class="fix-team fix-team-r'+(atbd?' tbd':win===at?' win':'')+'" title="'+(atbd?'':at)+'">'+(atbd?'Por definir':withFlag(at))+'</span>'
         +'</div>'
         +'<span class="fix-venue">📍 '+m.venue+'</span>'
         +'</div>';
