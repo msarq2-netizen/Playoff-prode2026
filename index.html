@@ -124,6 +124,16 @@ nav button:hover:not(.on){background:#475569;color:#e2e8f0}
 .proto-tab:hover:not(.on){background:#334155;color:#e2e8f0}
 /* Group predictions table */
 .gp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+
+/* Match rows inside group result cards */
+.gr-match{display:flex;align-items:center;padding:7px 10px;border-top:1px solid #1e293b;gap:6px}
+.gr-match:hover{background:#1a2d48}
+.gr-num{font-size:.65rem;color:#475569;width:14px;text-align:right;flex-shrink:0}
+.gr-home{flex:1;display:flex;align-items:center;font-size:.78rem;overflow:hidden;min-width:0}
+.gr-home-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gr-score-ctr{flex-shrink:0;width:52px;text-align:center;font-size:.88rem;font-weight:800;letter-spacing:1px}
+.gr-away{flex:1;display:flex;align-items:center;justify-content:flex-end;font-size:.78rem;overflow:hidden;min-width:0}
+.gr-away-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
 .gp-sum{display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px 16px;margin-bottom:14px;font-size:.8rem}
 .gp-sum .pts{font-weight:800;font-size:1rem;color:#22c55e}
 .gp-sum .sub{color:#64748b}
@@ -794,36 +804,40 @@ function renderGruposContent(name){
   GROUPS.forEach(function(gr){
     var ms=byGroup[gr]; if(!ms||!ms.length) return;
     var grpPts=0;
-    cards+='<div class="g-card"><div class="g-head">Grupo '+gr+'</div>'
-      +'<table><thead><tr>'
-      +'<th style="text-align:left;font-size:.7rem">Partido</th>'
-      +'<th style="font-size:.7rem">Pronóstico</th>'
-      +'<th style="font-size:.7rem">Real</th>'
-      +'<th style="font-size:.7rem">Pts</th>'
-      +'</tr></thead><tbody>';
-    ms.forEach(function(m){
+    cards+='<div class="g-card"><div class="g-head">Grupo '+gr+'</div>';
+    // column header
+    cards+='<div style="display:flex;align-items:center;padding:4px 10px 4px 28px;font-size:.65rem;color:#475569;border-top:1px solid #334155">'
+      +'<div style="flex:1">Partido</div>'
+      +'<div style="width:44px;text-align:center">Pron.</div>'
+      +'<div style="width:44px;text-align:center">Real</div>'
+      +'<div style="width:28px;text-align:center">Pts</div>'
+      +'</div>';
+    ms.forEach(function(m,i){
       var predStr=m.hasPred?m.predH+'-'+m.predA:'?';
       var actStr=m.hasAct?m.actH+'-'+m.actA:'—';
       var pts=m.pts;
       var ptsCol=pts===3?'#22c55e':pts===1?'#fbbf24':'#475569';
       var ptsStr=(m.hasAct&&m.hasPred)?String(pts):'';
       if(m.hasAct&&m.hasPred){grpPts+=pts;totalPts+=pts;if(pts===3)totalEx++;else if(pts===1)totalRe++;}
-      // Abbreviate team names for display
-      var hShort=withFlag(m.home.length>14?m.home.slice(0,13)+'…':m.home);
-      var aShort=withFlag(m.away.length>14?m.away.slice(0,13)+'…':m.away);
-      // Highlight exact/correct
-      var rowStyle=pts===3?' style="background:#052e16"':pts===1?' style="background:#1c1408"':'';
-      cards+='<tr'+rowStyle+'>'
-        +'<td style="text-align:left;font-size:.7rem" title="'+m.home+' vs '+m.away+'">'+hShort+' – '+aShort+'</td>'
-        +'<td style="font-size:.8rem;text-align:center;color:#94a3b8">'+predStr+'</td>'
-        +'<td style="font-size:.8rem;text-align:center">'+actStr+'</td>'
-        +'<td style="text-align:center;font-weight:700;color:'+ptsCol+'">'+ptsStr+'</td></tr>';
+      var rowBg=pts===3?'background:#052e16':pts===1?'background:#1c1408':'';
+      var scoreColor=(m.hasAct&&m.hasPred)?(pts===3?'#22c55e':pts===1?'#fbbf24':'#94a3b8'):'#64748b';
+      cards+='<div class="gr-match" style="'+rowBg+'">'
+        +'<span class="gr-num">'+(i+1)+'</span>'
+        +'<div class="gr-home" style="flex-direction:column;align-items:flex-start;gap:2px">'
+        +'<div style="display:flex;align-items:center;font-size:.74rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+withFlag(m.home)+'</div>'
+        +'<div style="display:flex;align-items:center;font-size:.72rem;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+withFlag(m.away)+'</div>'
+        +'</div>'
+        +'<div style="width:44px;text-align:center;font-size:.76rem;color:#64748b;flex-shrink:0">'+predStr+'</div>'
+        +'<div style="width:44px;text-align:center;font-size:.8rem;font-weight:700;color:'+scoreColor+';flex-shrink:0">'+actStr+'</div>'
+        +'<div style="width:28px;text-align:center;font-weight:800;color:'+ptsCol+';flex-shrink:0">'+ptsStr+'</div>'
+        +'</div>';
     });
     // Group subtotal row
-    cards+='<tr style="background:#141f2e;border-top:2px solid #334155">'
-      +'<td colspan="3" style="text-align:right;font-size:.68rem;color:#475569;padding:4px 8px">Subtotal grupo '+gr+'</td>'
-      +'<td style="text-align:center;font-weight:800;font-size:.88rem;color:#22c55e;padding:4px 8px">'+grpPts+'</td></tr>';
-    cards+='</tbody></table></div>';
+    cards+='<div style="background:#141f2e;border-top:2px solid #334155;display:flex;justify-content:space-between;align-items:center;padding:5px 10px">'
+      +'<span style="font-size:.68rem;color:#475569">Subtotal grupo '+gr+'</span>'
+      +'<span style="font-weight:800;font-size:.88rem;color:#22c55e">'+grpPts+' pts</span>'
+      +'</div>';
+    cards+='</div>';
   });
   cards+='</div>';
 
@@ -943,37 +957,32 @@ function renderGruposResultados(){
   var cards='<div class="gp-grid">';
   GROUPS.forEach(function(gr){
     var ms=byGroup[gr]; if(!ms||!ms.length) return;
-    cards+='<div class="g-card"><div class="g-head">Grupo '+gr+'</div>'
-      +'<table><thead><tr>'
-      +'<th style="text-align:left;font-size:.7rem">Partido</th>'
-      +'<th colspan="3" style="font-size:.7rem;text-align:center">Resultado</th>'
-      +'</tr></thead><tbody>';
-    ms.forEach(function(m){
+    var grpPlayed=ms.filter(function(m){return m.hasAct;}).length;
+    cards+='<div class="g-card"><div class="g-head">Grupo '+gr
+      +'<span>'+grpPlayed+'/'+ms.length+' jugados</span></div>';
+    ms.forEach(function(m,i){
       total++;
-      var hShort=withFlag(m.home.length>15?m.home.slice(0,14)+'…':m.home);
-      var aShort=withFlag(m.away.length>15?m.away.slice(0,14)+'…':m.away);
       if(m.hasAct){
         played++;
         var aH=parseInt(m.actH),aA=parseInt(m.actA);
-        var winH=aH>aA,winA=aA>aH;
-        cards+='<tr>'
-          +'<td style="text-align:left;font-size:.72rem;max-width:130px" title="'+m.home+' vs '+m.away+'">'+hShort+' – '+aShort+'</td>'
-          +'<td style="text-align:right;font-weight:700;color:'+(winH?'#22c55e':'#94a3b8')+'">'+m.actH+'</td>'
-          +'<td style="text-align:center;color:#475569;font-size:.7rem;padding:0 4px">–</td>'
-          +'<td style="text-align:left;font-weight:700;color:'+(winA?'#22c55e':'#94a3b8')+'">'+m.actA+'</td>'
-          +'</tr>';
+        var winH=aH>aA,winA=aA>aH,draw=aH===aA;
+        var scoreColor=draw?'#fbbf24':'#22c55e';
+        cards+='<div class="gr-match">'
+          +'<span class="gr-num">'+(i+1)+'</span>'
+          +'<div class="gr-home"><span class="gr-home-txt">'+withFlag(m.home)+'</span></div>'
+          +'<div class="gr-score-ctr" style="color:'+scoreColor+'">'+m.actH+'–'+m.actA+'</div>'
+          +'<div class="gr-away"><span class="gr-away-txt">'+withFlag(m.away)+'</span></div>'
+          +'</div>';
       } else {
-        cards+='<tr style="opacity:.4">'
-          +'<td style="text-align:left;font-size:.72rem" title="'+m.home+' vs '+m.away+'">'+hShort+' – '+aShort+'</td>'
-          +'<td colspan="3" style="text-align:center;color:#334155;font-size:.72rem">no jugado</td>'
-          +'</tr>';
+        cards+='<div class="gr-match" style="opacity:.35">'
+          +'<span class="gr-num">'+(i+1)+'</span>'
+          +'<div class="gr-home"><span class="gr-home-txt">'+withFlag(m.home)+'</span></div>'
+          +'<div class="gr-score-ctr" style="color:#334155;font-size:.72rem;font-weight:400">vs</div>'
+          +'<div class="gr-away"><span class="gr-away-txt">'+withFlag(m.away)+'</span></div>'
+          +'</div>';
       }
     });
-    var grpPlayed=ms.filter(function(m){return m.hasAct;}).length;
-    cards+='<tr style="background:#141f2e;border-top:2px solid #334155">'
-      +'<td colspan="4" style="text-align:right;font-size:.68rem;color:#475569;padding:4px 8px">'+grpPlayed+'/'+ms.length+' jugados</td>'
-      +'</tr>';
-    cards+='</tbody></table></div>';
+    cards+='</div>';
   });
   cards+='</div>';
 
