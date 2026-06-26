@@ -155,6 +155,23 @@ nav button:hover:not(.on){background:#475569;color:#e2e8f0}
 .fix-sc.win{color:#22c55e}
 .fix-venue{font-size:.65rem;color:#475569;white-space:nowrap;margin-left:auto}
 .fix-tbd{color:#334155;font-style:italic;font-size:.75rem}
+
+/* Bonus / Extras */
+.bonus-table{width:100%;border-collapse:collapse;font-size:.8rem}
+.bonus-table th{padding:8px 10px;color:#475569;font-weight:600;border-bottom:1px solid #334155;text-align:center;white-space:nowrap}
+.bonus-table th:first-child{text-align:left}
+.bonus-table td{padding:8px 10px;border-top:1px solid #1e293b;text-align:center;vertical-align:middle}
+.bonus-table td:first-child{text-align:left;font-weight:600}
+.bonus-table tr.actual-row{background:#1c1408}
+.bonus-table tr.actual-row td{color:#fbbf24;font-weight:700}
+.bonus-table tr:hover:not(.actual-row){background:#1a2d48}
+.bonus-input{width:100%;padding:5px 8px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-size:.78rem;text-align:center}
+.bonus-input:focus{outline:none;border-color:#3b82f6}
+.bcat-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.bcat-label{font-size:.75rem;color:#64748b;margin-bottom:3px}
+.bcat-pick{font-size:.88rem;font-weight:600;color:#e2e8f0}
+.bcat-pts{font-size:.9rem;font-weight:800;flex-shrink:0;width:44px;text-align:right}
+.bonus-legend{font-size:.7rem;color:#475569;display:flex;gap:16px;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -167,7 +184,24 @@ nav button:hover:not(.on){background:#475569;color:#e2e8f0}
   <button onclick="tab('resultados',this)">📋 Resultados</button>
   <button onclick="tab('pronosticos',this)">🔮 Pronósticos</button>
   <button onclick="tab('fixture',this)">📅 Fixture</button>
+  <button id="gear-btn" onclick="toggleAdmin()" style="margin-left:auto" title="Admin">⚙️</button>
 </nav>
+
+<!-- Admin modal -->
+<div id="admin-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100;align-items:center;justify-content:center">
+  <div style="background:#1e293b;border:1px solid #334155;border-radius:14px;padding:28px 32px;width:320px;max-width:90vw">
+    <h3 style="color:#fbbf24;margin-bottom:6px;font-size:1rem">⚙️ Acceso administrador</h3>
+    <p style="color:#64748b;font-size:.78rem;margin-bottom:18px">Ingresá la contraseña para cargar resultados.</p>
+    <input id="admin-pw-input" type="password" placeholder="Contraseña"
+      style="width:100%;padding:10px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:.9rem;margin-bottom:12px;outline:none"
+      onkeydown="if(event.key==='Enter')adminLogin()">
+    <p id="admin-pw-err" style="color:#ef4444;font-size:.75rem;margin-bottom:10px;display:none">Contraseña incorrecta.</p>
+    <div style="display:flex;gap:10px">
+      <button onclick="adminLogin()" style="flex:1;padding:10px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:.85rem">Ingresar</button>
+      <button onclick="closeAdminModal()" style="padding:10px 16px;background:#334155;color:#94a3b8;border:none;border-radius:8px;cursor:pointer;font-size:.85rem">Cancelar</button>
+    </div>
+  </div>
+</div>
 
 <div id="panel-grupos"      class="panel" style="display:none"></div>
 <div id="panel-posiciones"  class="panel on"><div class="loader"><div class="spin"></div></div></div>
@@ -186,9 +220,19 @@ var curPlayer = null;
 var pred = JSON.parse(localStorage.getItem(KEY) || '{}');
 var rt = null;
 var adminMode = false;
-var ADMIN_PW = 'admin2026';
+var ADMIN_PW = 'mundial26';
 var proSubTab = 'grupos';
 var resSubTab = 'grupos';
+
+var BONUS_KEY = 'po2026v1_bonus';
+var bonusData = JSON.parse(localStorage.getItem(BONUS_KEY) || '{"actual":{}}');
+var BONUS_PTS  = {champ:10, sub:7, third:5, scorer:5};
+var BONUS_CATS = [
+  {k:'champ',  label:'Campeón 🏆',       pts:10},
+  {k:'sub',    label:'Subcampeón 🥈',     pts:7},
+  {k:'third',  label:'Tercer puesto 🥉',  pts:5},
+  {k:'scorer', label:'Goleador ⚽',       pts:5},
+];
 
 // ── Flags ─────────────────────────────────────────────────────────────────────
 // ISO 3166-1 alpha-2 codes → flagcdn.com images (funciona en todos los navegadores)
@@ -672,6 +716,39 @@ function thirdsHtml() {
   return h+'</tbody></table></div>';
 }
 
+// ── Bonus helpers ─────────────────────────────────────────────────────────────
+// picks vienen de P_raw (datos en vivo del sitio), solo "actual" va a localStorage
+function saveBonus(){ localStorage.setItem(BONUS_KEY, JSON.stringify(bonusData)); }
+function cmpNorm(a,b){ return !!(a&&b&&a.trim().toLowerCase()===b.trim().toLowerCase()); }
+
+function getPicksFromPRaw(name){
+  if(!P_raw||!NAMES_raw) return {};
+  var idx=NAMES_raw.indexOf(name);
+  if(idx<0||!P_raw[idx]) return {};
+  var p=P_raw[idx];
+  return { champ:p.c||'', sub:p.s||'', third:p.t||'', scorer:p.go||'' };
+}
+
+function hasBonusPicks(){
+  if(!P_raw||!NAMES_raw) return false;
+  return P_raw.some(function(p){ return p&&(p.c||p.t||p.go); });
+}
+
+function getBonusScore(name){
+  var picks=getPicksFromPRaw(name), act=bonusData.actual||{}, total=0;
+  BONUS_CATS.forEach(function(c){
+    if(cmpNorm(picks[c.k], act[c.k])) total+=c.pts;
+  });
+  return total;
+}
+function saveActual(key,val){
+  if(!bonusData.actual) bonusData.actual={};
+  bonusData.actual[key]=val.trim();
+  saveBonus();
+  renderStandings();
+  renderResContent();
+}
+
 // ── Render: Standings ─────────────────────────────────────────────────────────
 function renderStandings() {
   if(!players.length){
@@ -680,31 +757,51 @@ function renderStandings() {
     return;
   }
   var played = M.filter(function(m){return R[(m[0]-1)*2]!==null;}).length;
-  var h='<div class="box"><div class="box-h">🏅 Tabla de Posiciones — Fase de Grupos'
-    +' <span>'+played+' partidos jugados</span></div>'
+  var hasBonus = hasBonusPicks();
+
+  // Enrich players with bonus pts and re-sort
+  var enriched = players.map(function(p){
+    var b = getBonusScore(p.name);
+    return Object.assign({}, p, {bonus: b, total: (p.pts||0)+b});
+  });
+  enriched.sort(function(a,b){ return (b.total-a.total)||(b.exact-a.exact)||(b.corr-a.corr); });
+
+  var h='<div class="box"><div class="box-h">🏅 Tabla de Posiciones'
+    +' <span>'+played+'/72 partidos · Fase de Grupos</span></div>'
     +'<table class="std-table"><thead><tr>'
     +'<th>#</th><th></th><th>Jugador</th>'
-    +'<th title="Puntos totales">PTS</th>'
+    +'<th title="Puntos fase de grupos">Grupos</th>'
+    +(hasBonus?'<th title="Puntos pronósticos especiales" style="color:#f59e0b">Extras</th>':'')
+    +'<th title="Puntos totales">TOTAL</th>'
     +'<th title="Resultado exacto (3pts)"><span class="tag-ex">EX</span></th>'
     +'<th title="Resultado correcto (1pt)"><span class="tag-re">RE</span></th>'
     +'</tr></thead><tbody>';
 
-  players.forEach(function(p,i){
+  enriched.forEach(function(p,i){
     var rc=i===0?'r1':i===1?'r2':i===2?'r3':'';
     var med=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
     h+='<tr>'
       +'<td class="'+rc+'"><strong>'+(i+1)+'</strong></td>'
       +'<td>'+med+'</td>'
       +'<td>'+p.name+'</td>'
-      +'<td class="pts-big">'+p.pts+'</td>'
+      +'<td style="color:#64748b">'+p.pts+'</td>'
+      +(hasBonus?'<td style="color:'+(p.bonus>0?'#f59e0b':'#334155')+'">+'+(p.bonus)+'</td>':'')
+      +'<td class="pts-big">'+p.total+'</td>'
       +'<td><span class="tag-ex">'+p.exact+'</span></td>'
       +'<td><span class="tag-re">'+p.corr+'</span></td>'
       +'</tr>';
   });
   h+='</tbody></table></div>';
-  h+='<div class="note gap">Datos tomados de la tabla de posiciones del sitio principal. '
-    +'<strong>EX</strong> = resultado exacto (3 pts) · <strong>RE</strong> = resultado correcto (1 pt). '
-    +'La columna de playoff se agregará cuando comiencen los partidos.</div>';
+
+  // Bonus legend
+  if(hasBonus){
+    h+='<div class="note gap"><strong style="color:#f59e0b">Extras (pronósticos especiales):</strong> '
+      +'Campeón +10pts · Subcampeón +7pts · 3er puesto +5pts · Goleador +5pts. '
+      +'Cargados por el admin · los resultados se confirman al final del torneo.</div>';
+  } else {
+    h+='<div class="note gap"><strong>EX</strong> = resultado exacto (3 pts) · <strong>RE</strong> = resultado correcto (1 pt). '
+      +'Los pronósticos especiales (campeón, goleador…) se cargarán vía el ⚙️ admin.</div>';
+  }
   document.getElementById('panel-posiciones').innerHTML=h;
 }
 
@@ -729,6 +826,7 @@ function renderPronosticos() {
   var tabs='<div class="pro-tabs">'
     +'<button class="proto-tab'+(proSubTab==='grupos'?' on':'')+'" data-tab="grupos" onclick="switchProTab(\'grupos\')">📊 Fase de Grupos</button>'
     +'<button class="proto-tab'+(proSubTab==='playoff'?' on':'')+'" data-tab="playoff" onclick="switchProTab(\'playoff\')">🏆 Playoff</button>'
+    +'<button class="proto-tab'+(proSubTab==='extras'?' on':'')+'" data-tab="extras" onclick="switchProTab(\'extras\')" style="color:#f59e0b">⭐ Extras</button>'
     +'</div>';
 
   document.getElementById('panel-pronosticos').innerHTML=sel+tabs+'<div id="pro-content"></div>';
@@ -755,6 +853,8 @@ function renderProContent(){
   if(!el) return;
   if(proSubTab==='grupos'){
     el.innerHTML=renderGruposContent(curPlayer);
+  } else if(proSubTab==='extras'){
+    el.innerHTML=renderExtrasPronostico(curPlayer);
   } else {
     el.innerHTML='<div id="pbracket"></div>';
     renderPBracket(curPlayer);
@@ -859,6 +959,44 @@ var PRNDS=[
   {k:'sf', t:'🌟 Semifinales',ids:['sf-1','sf-2']},
 ];
 
+// ── Extras: pronóstico de un jugador ─────────────────────────────────────────
+function renderExtrasPronostico(name){
+  var picks = getPicksFromPRaw(name);
+  var act   = bonusData.actual   || {};
+  var totalBonus = getBonusScore(name);
+  var hasPicks = BONUS_CATS.some(function(c){ return picks[c.k]; });
+
+  if(!hasPicks){
+    return '<div class="note">No hay pronósticos especiales cargados para <strong>'+name+'</strong>.</div>';
+  }
+
+  var h='<div class="gp-sum" style="margin-bottom:16px">'
+    +'<span style="color:#94a3b8">Extras — <strong>'+name+'</strong></span>'
+    +'<span class="pts" style="color:#f59e0b">+'+totalBonus+' pts bonus</span>'
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;gap:10px;max-width:480px">';
+
+  BONUS_CATS.forEach(function(c){
+    var pick = picks[c.k] || '–';
+    var actual = act[c.k] || '';
+    var correct = actual && cmpNorm(pick, actual);
+    var pending = pick !== '–' && !actual;
+    var wrong   = actual && !correct;
+    var statusColor = correct ? '#22c55e' : pending ? '#64748b' : wrong ? '#ef4444' : '#475569';
+    var statusText  = correct ? '✓ +'+c.pts+' pts' : pending ? 'Pendiente' : wrong ? '✗ 0 pts' : '';
+    h+='<div class="bcat-card">'
+      +'<div style="flex:1;min-width:0">'
+      +'<div class="bcat-label">'+c.label+' (hasta '+c.pts+' pts)</div>'
+      +'<div class="bcat-pick">'+(pick!=='–'?withFlag(pick):pick)+'</div>'
+      +(actual?'<div style="font-size:.7rem;color:#475569;margin-top:2px">Real: '+withFlag(actual)+'</div>':'')
+      +'</div>'
+      +'<div class="bcat-pts" style="color:'+statusColor+'">'+statusText+'</div>'
+      +'</div>';
+  });
+  h+='</div>';
+  return h;
+}
+
 function renderPBracket(name){
   var locked=isLocked(name);
   var lockBar='';
@@ -924,18 +1062,42 @@ function resultCard(mid){
     +pen+'</div>';
 }
 
-// ── Admin toggle ──────────────────────────────────────────────────────────────
+// ── Admin ─────────────────────────────────────────────────────────────────────
 function toggleAdmin(){
-  if(adminMode){exitAdmin();return;}
-  var pw=prompt('🔐 Contraseña de administrador:');
-  if(pw===null) return;
-  if(pw!==ADMIN_PW){alert('Contraseña incorrecta.');return;}
+  if(adminMode){ exitAdmin(); return; }
+  var modal=document.getElementById('admin-modal');
+  modal.style.display='flex';
+  document.getElementById('admin-pw-err').style.display='none';
+  document.getElementById('admin-pw-input').value='';
+  setTimeout(function(){document.getElementById('admin-pw-input').focus();},80);
+}
+function closeAdminModal(){
+  document.getElementById('admin-modal').style.display='none';
+}
+function adminLogin(){
+  var pw=document.getElementById('admin-pw-input').value;
+  if(pw!==ADMIN_PW){
+    document.getElementById('admin-pw-err').style.display='block';
+    document.getElementById('admin-pw-input').select();
+    return;
+  }
   adminMode=true;
+  closeAdminModal();
+  updateGear();
   renderResContent();
 }
 function exitAdmin(){
   adminMode=false;
+  updateGear();
   renderResContent();
+}
+function updateGear(){
+  var btn=document.getElementById('gear-btn');
+  if(!btn) return;
+  btn.style.color=adminMode?'#fbbf24':'';
+  btn.style.background=adminMode?'#1c1408':'';
+  btn.style.borderColor=adminMode?'#f59e0b':'';
+  btn.title=adminMode?'Admin activo — click para salir':'Admin';
 }
 
 // ── Grupos results (read-only from R[] + M[]) ─────────────────────────────────
@@ -1001,8 +1163,7 @@ function renderPlayoffResultados(){
       +'<button class="admin-btn exit" onclick="exitAdmin()">✕ Salir del modo admin</button>'
       +'</div>'
     : '<div class="admin-bar">'
-      +'<span class="admin-label">📋 Solo lectura — los resultados se cargan al finalizar cada partido.</span>'
-      +'<button class="admin-btn" onclick="toggleAdmin()">🔐 Admin</button>'
+      +'<span class="admin-label">📋 Solo lectura — los resultados se cargan al finalizar cada partido. Usá el ⚙️ del menú para ingresar como admin.</span>'
       +'</div>';
 
   var h=adminBar;
@@ -1027,16 +1188,77 @@ function switchResTab(tab){
   renderResContent();
 }
 
+// ── Extras: tabla de todos los jugadores ─────────────────────────────────────
+function renderExtrasResultados(){
+  var act = bonusData.actual || {};
+  var pnames = players.map(function(p){return p.name;});
+
+  var adminBar = adminMode
+    ? '<div class="admin-bar active"><span class="admin-label">✏️ <strong>Modo admin activo</strong> — ingresá los resultados reales cuando estén confirmados</span>'
+      +'<button class="admin-btn exit" onclick="exitAdmin()">✕ Salir</button></div>'
+    : '<div class="admin-bar"><span class="admin-label">⭐ Pronósticos especiales — puntos adicionales al final del torneo. Usá ⚙️ para cargar resultados.</span></div>';
+
+  var h = adminBar;
+
+  // Points legend
+  h+='<div class="bonus-legend" style="margin-bottom:14px">';
+  BONUS_CATS.forEach(function(c){ h+='<span>'+c.label+': <strong>'+c.pts+' pts</strong></span>'; });
+  h+='</div>';
+
+  // Table
+  h+='<div style="overflow-x:auto"><table class="bonus-table"><thead><tr>'
+    +'<th>Jugador</th>';
+  BONUS_CATS.forEach(function(c){ h+='<th>'+c.label+'</th>'; });
+  h+='<th style="color:#f59e0b">Bonus</th></tr></thead><tbody>';
+
+  // Actual results row (admin editable)
+  h+='<tr class="actual-row"><td>✅ Resultado real</td>';
+  BONUS_CATS.forEach(function(c){
+    if(adminMode){
+      h+='<td><input class="bonus-input" placeholder="—" value="'+esc(act[c.k]||'')+'" '
+        +'oninput="saveActual(\''+c.k+'\',this.value)"></td>';
+    } else {
+      h+='<td>'+(act[c.k]?withFlag(act[c.k]):'<span style="color:#334155">Pendiente</span>')+'</td>';
+    }
+  });
+  h+='<td>—</td></tr>';
+
+  // Player rows — picks come from P_raw (live source)
+  pnames.forEach(function(name){
+    var picks = getPicksFromPRaw(name);
+    var bonus = getBonusScore(name);
+    h+='<tr><td>'+name+'</td>';
+    BONUS_CATS.forEach(function(c){
+      var pick = picks[c.k] || '';
+      var correct = act[c.k] && pick && cmpNorm(pick, act[c.k]);
+      var wrong   = act[c.k] && pick && !correct;
+      var cellColor = correct?'#22c55e':wrong?'#ef4444':'';
+      h+='<td style="color:'+cellColor+'">'
+        +(pick
+          ? withFlag(pick)+(act[c.k]?'<br><span style="font-size:.62rem">'+(correct?'✓ +'+c.pts+'pts':'✗')+'</span>':'')
+          : '<span style="color:#334155">—</span>')
+        +'</td>';
+    });
+    h+='<td style="color:#f59e0b;font-weight:800">'+(bonus>0?'+'+bonus:'–')+'</td></tr>';
+  });
+
+  h+='</tbody></table></div>';
+  return h;
+}
+
 function renderResContent(){
   var el=document.getElementById('res-content');
   if(!el) return;
-  el.innerHTML = resSubTab==='grupos' ? renderGruposResultados() : renderPlayoffResultados();
+  if(resSubTab==='grupos') el.innerHTML=renderGruposResultados();
+  else if(resSubTab==='playoff') el.innerHTML=renderPlayoffResultados();
+  else el.innerHTML=renderExtrasResultados();
 }
 
 function renderBracket(){
   var tabs='<div class="pro-tabs">'
     +'<button class="proto-tab res-tab'+(resSubTab==='grupos'?' on':'')+'" data-tab="grupos" onclick="switchResTab(\'grupos\')">📊 Fase de Grupos</button>'
     +'<button class="proto-tab res-tab'+(resSubTab==='playoff'?' on':'')+'" data-tab="playoff" onclick="switchResTab(\'playoff\')">🏆 Playoff</button>'
+    +'<button class="proto-tab res-tab'+(resSubTab==='extras'?' on':'')+'" data-tab="extras" onclick="switchResTab(\'extras\')" style="color:#f59e0b">⭐ Extras</button>'
     +'</div>'
     +'<div id="res-content"></div>';
   document.getElementById('panel-resultados').innerHTML=tabs;
