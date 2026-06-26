@@ -1045,36 +1045,34 @@ function renderBracket(){
 
 // ── Fixture schedule ──────────────────────────────────────────────────────────
 var SCHEDULE = [
-  // 16avos de Final (M73–M88)
+  // 16avos de Final (M73–M88) — horarios en ART (ET + 1h)
   {date:'Dom 28 Jun', matches:[
-    {id:'r32-1',  time:'20:00', venue:'Los Angeles'}
+    {id:'r32-1',  time:'20:00', venue:'Los Ángeles'}          // 19:00 ET
   ]},
   {date:'Lun 29 Jun', matches:[
-    {id:'r32-4',  time:'18:00', venue:'Houston'},
-    {id:'r32-2',  time:'21:30', venue:'Foxborough'}
+    {id:'r32-4',  time:'18:00', venue:'Houston'},              // 17:00 ET
+    {id:'r32-2',  time:'21:30', venue:'Foxborough'}            // 20:30 ET
   ]},
   {date:'Mar 30 Jun', matches:[
-    {id:'r32-3',  time:'02:00', venue:'Guadalupe, México'},
-    {id:'r32-6',  time:'18:00', venue:'Arlington'},
-    {id:'r32-5',  time:'22:00', venue:'Nueva Jersey'}
+    {id:'r32-6',  time:'18:00', venue:'Arlington'},            // 17:00 ET
+    {id:'r32-5',  time:'18:00', venue:'Nueva Jersey'},         // 17:00 ET
+    {id:'r32-7',  time:'22:00', venue:'Ciudad de México'}      // 21:00 ET
   ]},
   {date:'Mié 1 Jul', matches:[
-    {id:'r32-7',  time:'02:00', venue:'Ciudad de México'},
-    {id:'r32-8',  time:'17:00', venue:'Atlanta'},
-    {id:'r32-10', time:'21:00', venue:'Seattle'}
+    {id:'r32-3',  time:'02:00', venue:'Monterrey, México'},    // 01:00 ET (madrugada)
+    {id:'r32-8',  time:'13:00', venue:'Atlanta'},              // 12:00 ET
+    {id:'r32-10', time:'17:00', venue:'Seattle'},              // 16:00 ET
+    {id:'r32-9',  time:'21:00', venue:'Santa Clara'}           // 20:00 ET
   ]},
   {date:'Jue 2 Jul', matches:[
-    {id:'r32-9',  time:'01:00', venue:'Santa Clara'},
-    {id:'r32-12', time:'20:00', venue:'Los Angeles'}
+    {id:'r32-12', time:'16:00', venue:'Los Ángeles'},          // 15:00 ET
+    {id:'r32-11', time:'20:00', venue:'Toronto'}               // 19:00 ET
   ]},
   {date:'Vie 3 Jul', matches:[
-    {id:'r32-11', time:'00:00', venue:'Toronto'},
-    {id:'r32-13', time:'04:00', venue:'Vancouver'},
-    {id:'r32-16', time:'19:00', venue:'Arlington'},
-    {id:'r32-14', time:'23:00', venue:'Miami'}
-  ]},
-  {date:'Sáb 4 Jul', matches:[
-    {id:'r32-15', time:'02:30', venue:'Kansas City'}
+    {id:'r32-13', time:'00:00', venue:'Vancouver'},            // 23:00 ET (madrugada)
+    {id:'r32-15', time:'—',    venue:'Kansas City'},
+    {id:'r32-16', time:'15:00', venue:'Arlington'},            // 14:00 ET
+    {id:'r32-14', time:'19:00', venue:'Miami'}                 // 18:00 ET
   ]},
   // 8vos de Final (R16)
   {date:'Sáb 5 Jul', matches:[
@@ -1128,7 +1126,7 @@ function rndLabel(id){
 }
 
 function renderFixture(){
-  var h='';
+  var h='<p style="font-size:.72rem;color:#475569;margin-bottom:14px">⏰ Horarios en hora argentina (ART, UTC−3)</p>';
   SCHEDULE.forEach(function(day){
     h+='<p class="fix-date-hdr">'+day.date+'</p><div class="fix-list">';
     day.matches.forEach(function(m){
