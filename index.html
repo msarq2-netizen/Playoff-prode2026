@@ -61,11 +61,29 @@ nav button:hover:not(.on){background:#475569;color:#e2e8f0}
 .tag-ex{background:#064e3b;color:#34d399;border-radius:4px;padding:1px 5px;font-size:.72rem;font-weight:700}
 .tag-re{background:#1e3a5f;color:#60a5fa;border-radius:4px;padding:1px 5px;font-size:.72rem;font-weight:700}
 .src-badge{font-size:.65rem;background:#334155;color:#64748b;border-radius:4px;padding:2px 6px}
-.col-detail{} /* shown on desktop, hidden on mobile */
+.col-detail{}
 @media(max-width:540px){
   .col-detail{display:none}
   .std-table th,.std-table td{padding:8px 6px}
 }
+
+/* Podium */
+.podium-wrap{display:flex;gap:10px;justify-content:center;align-items:flex-end;padding:8px 0 24px;margin-bottom:4px}
+.pod-card{flex:1;max-width:115px;border-radius:16px;padding:14px 8px 12px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:default;transition:transform .15s}
+.pod-card.p1{background:linear-gradient(160deg,#2d1f00,#181000);border:1.5px solid #fbbf24;transform:translateY(-10px);box-shadow:0 8px 24px rgba(251,191,36,.18)}
+.pod-card.p2{background:linear-gradient(160deg,#1c2028,#0e1218);border:1.5px solid #6b7280}
+.pod-card.p3{background:linear-gradient(160deg,#1c1208,#0f0a04);border:1.5px solid #92400e}
+.pod-trophy{font-size:2rem;line-height:1;margin-bottom:2px}
+.pod-avatar{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;margin:0 auto}
+.pod-card.p1 .pod-avatar{background:#2d1f00;border:2px solid #fbbf24;color:#fbbf24}
+.pod-card.p2 .pod-avatar{background:#1c2028;border:2px solid #6b7280;color:#9ca3af}
+.pod-card.p3 .pod-avatar{background:#1c1208;border:2px solid #92400e;color:#d97706}
+.pod-name{font-size:.7rem;font-weight:700;color:#e2e8f0;word-break:break-word;line-height:1.3;max-width:100%}
+.pod-pts{font-size:1.25rem;font-weight:800;line-height:1;margin-top:2px}
+.pod-card.p1 .pod-pts{color:#fbbf24}
+.pod-card.p2 .pod-pts{color:#9ca3af}
+.pod-card.p3 .pod-pts{color:#d97706}
+.pod-ptsub{font-size:.62rem;color:#475569;margin-top:-2px}
 
 /* Player selector */
 .psel{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
@@ -846,9 +864,29 @@ function renderStandings() {
   });
   enriched.sort(function(a,b){ return (b.total-a.total)||(b.exact-a.exact)||(b.corr-a.corr); });
 
-  var h='<div class="box"><div class="box-h">🏅 Tabla de Posiciones'
-    +' <span>'+played+'/72 partidos · Fase de Grupos</span></div>'
-    +'<div style="overflow-x:auto"><table class="std-table"><thead><tr>'
+  // ── Podio top 3 ────────────────────────────────────────────────────────────
+  var podCfg=[
+    {cls:'p2',trophy:'🥈',idx:1},  // orden visual: 2do izq, 1ro centro, 3ro der
+    {cls:'p1',trophy:'🥇',idx:0},
+    {cls:'p3',trophy:'🥉',idx:2},
+  ];
+  var podH='<div class="box" style="padding-bottom:0"><div class="box-h">🏅 Posiciones <span>'+played+'/72 partidos · Fase de Grupos</span></div>'
+    +'<div class="podium-wrap">';
+  podCfg.forEach(function(cfg){
+    var p=enriched[cfg.idx];
+    if(!p) return;
+    var initials=p.name.trim().split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+    podH+='<div class="pod-card '+cfg.cls+'">'
+      +'<div class="pod-trophy">'+cfg.trophy+'</div>'
+      +'<div class="pod-avatar">'+initials+'</div>'
+      +'<div class="pod-name">'+p.name+'</div>'
+      +'<div class="pod-pts">'+p.total+'</div>'
+      +'<div class="pod-ptsub">pts</div>'
+      +'</div>';
+  });
+  podH+='</div></div>';
+
+  var h=podH+'<div class="box" style="margin-top:10px"><div style="overflow-x:auto"><table class="std-table"><thead><tr>'
     +'<th>#</th>'
     +'<th class="col-name">Jugador</th>'
     +(hasBonus?'<th class="col-detail" title="Puntos fase de grupos">Grupos</th>':'')
@@ -882,6 +920,7 @@ function renderStandings() {
     h+='<div class="note gap"><strong>EX</strong> = resultado exacto (3 pts) · <strong>RE</strong> = resultado correcto (1 pt). '
       +'Los pronósticos especiales (campeón, goleador…) se cargarán vía el ⚙️ admin.</div>';
   }
+  h+='</div>'; // cierre del box de la tabla
   document.getElementById('panel-posiciones').innerHTML=h;
 }
 
